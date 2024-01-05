@@ -1,6 +1,6 @@
 from sly import Parser
 from lexer import MyLexer
-from ast_node import *
+from generator import MyGenerator
 
 
 class MyParser(Parser):
@@ -11,45 +11,51 @@ class MyParser(Parser):
         ('left', TIMES, DIVIDE, MOD),
     )
 
+    def __init__(self):
+        self.generator = MyGenerator()
+        self.scope = ""
+
     # program_all productions
 
     @_('procedures main')
     def program_all(self, p):
-        return ProgramNode(p.procedures, p.main)
+        if not p.procedures:
+            return p.main
+        return p.procedures + p.main
 
     # procedures productions
 
     @_('procedures PROCEDURE proc_head IS declarations IN commands END')
     def procedures(self, p):
-        return ProceduresNode(*p.procedures.procedures, ProcedureNode(p.proc_head, p.declarations, p.commands))
+        return 'procedures'
 
     @_('procedures PROCEDURE proc_head IS IN commands END')
     def procedures(self, p):
-        return ProceduresNode(*p.procedures.procedures, ProcedureNode(p.proc_head, None, p.commands))
+        return 'procedures'
 
     @_('')
     def procedures(self, p):
-        return ProceduresNode()
+        return []
 
     # main productions
 
     @_('PROGRAM IS declarations IN commands END')
     def main(self, p):
-        return MainNode(p.declarations, p.commands)
+        return p.commands + "HALT\n"
 
     @_('PROGRAM IS IN commands END')
     def main(self, p):
-        return MainNode(None, p.commands)
+        return p.commands + "HALT\n"
 
     # commands productions
 
     @_('commands command')
     def commands(self, p):
-        return CommandsNode(*p.commands.commands, p.command)
+        return p.commands + p.command
 
     @_('command')
     def commands(self, p):
-        return CommandsNode(p.command)
+        return p.command
 
     # command productions
 
@@ -79,11 +85,13 @@ class MyParser(Parser):
 
     @_('READ identifier SEMICOLON')
     def command(self, p):
-        return ReadNode(p.identifier)
+        code = p.identifier
+        return code + "PUT b\nREAD\nSTORE b\n"
 
     @_('WRITE value SEMICOLON')
     def command(self, p):
-        return WriteNode(p.value)
+        code = p.value
+        return code + "WRITE\n"
 
     # proc_head productions
 
@@ -101,47 +109,51 @@ class MyParser(Parser):
 
     @_('declarations COMMA PIDENTIFIER')
     def declarations(self, p):
-        return DeclarationsNode(*p.declarations.declarations, DeclarationNode(p.PIDENTIFIER))
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope)
+        return p.declarations + [("VARIABLE", p.PIDENTIFIER)]
 
     @_('declarations COMMA PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def declarations(self, p):
-        return DeclarationsNode(*p.declarations.declarations, DeclarationNode(p.PIDENTIFIER, p.NUMBER))
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER)
+        return p.declarations + [("ARRAY", p.PIDENTIFIER, p.NUMBER)]
 
     @_('PIDENTIFIER')
     def declarations(self, p):
-        return DeclarationsNode(DeclarationNode(p.PIDENTIFIER))
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope)
+        return [("VARIABLE", p.PIDENTIFIER)]
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def declarations(self, p):
-        return DeclarationsNode(DeclarationNode(p.PIDENTIFIER, p.NUMBER))
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER)
+        return [("ARRAY", p.PIDENTIFIER, p.NUMBER)]
 
     # args_decl productions
 
     @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, p):
-        return ArgsDeclNode(*p.args_decl.args_decl, ArgsDeclItemNode(p.PIDENTIFIER))
+        return p.PIDENTIFIER
 
     @_('args_decl COMMA T PIDENTIFIER')
     def args_decl(self, p):
-        return ArgsDeclNode(*p.args_decl.args_decl, ArgsDeclItemNode(p.PIDENTIFIER, True))
+        return p.PIDENTIFIER
 
     @_('PIDENTIFIER')
     def args_decl(self, p):
-        return ArgsDeclNode(ArgsDeclItemNode(p.PIDENTIFIER))
+        return p.PIDENTIFIER
 
     @_('T PIDENTIFIER')
     def args_decl(self, p):
-        return ArgsDeclNode(ArgsDeclItemNode(p.PIDENTIFIER, True))
+        return p.PIDENTIFIER
 
     # args productions
 
     @_('args COMMA PIDENTIFIER')
     def args(self, p):
-        return ArgsNode(*p.args.args, p.PIDENTIFIER)
+        return *p.args.args, p.PIDENTIFIER
 
     @_('PIDENTIFIER')
     def args(self, p):
-        return ArgsNode(p.PIDENTIFIER)
+        return p.PIDENTIFIER
 
     # expression productions
 
@@ -155,7 +167,8 @@ class MyParser(Parser):
         if len(p) == 1:
             return p.value
         elif len(p) == 3:
-            return ExpressionNode(p.value0, p[1], p.value1)
+            # kod maszynowy wykonuje operacje i wynik jest w A
+            return p.value0, p.value1
 
     # condition productions
 
@@ -166,31 +179,37 @@ class MyParser(Parser):
        'value GREATEREQUAL value',
        'value LESSEQUAL value')
     def condition(self, p):
-        return ConditionNode(p.value0, p[1], p.value1)
+        # jesli = : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        # jesli != : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        # jesli > : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        # jesli < : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        # jesli >= : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        # jesli <- : kod maszynowy ktory porowna i zaladuje 1 do akumulatora jesli prawda i 0 wpp
+        return
 
     # value productions
 
     @_('NUMBER')
     def value(self, p):
-        return p.NUMBER
+        return self.generator.generateNumber(int(p.NUMBER))
 
     @_('identifier')
     def value(self, p):
-        return p.identifier
+        return p.identifier + self.generator.loadNumberFromAddress()
 
     # identifier productions
 
     @_('PIDENTIFIER')
     def identifier(self, p):
-        return IdentifierNode(p.PIDENTIFIER)
+        return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def identifier(self, p):
-        return IdentifierNode(p.PIDENTIFIER, p.NUMBER)
+        return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope)
 
     @_('PIDENTIFIER LBRACKET PIDENTIFIER RBRACKET')
     def identifier(self, p):
-        return IdentifierNode(p.PIDENTIFIER, p[2])
+        return self.generator.generateArrayPidentifierElementAddress(p[0], p[2], self.scope)
 
     # error production
 

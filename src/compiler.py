@@ -1,36 +1,28 @@
+import sys
 from lexer import MyLexer
 from parser import MyParser
-from generator import MyGenerator
 
 
 class Compiler:
     def __init__(self):
         self.lexer = MyLexer()
         self.parser = MyParser()
-        self.generator = MyGenerator()
-
-    def compile_and_print(self, source_code):
-        try:
-            tokens = self.lexer.tokenize(source_code)
-            ast = self.parser.parse(tokens)
-            self.generator.generate(ast)
-
-        except Exception as e:
-            print(f"Compilation error: {e}")
 
 
 if __name__ == "__main__":
-    compiler = Compiler()
 
-    # Example source code
-    code = """
-        PROGRAM IS
-        a
-        IN
-            a := 5;
-            WRITE a;
-        END
-    """
+    if len(sys.argv) != 3:
+        print('Usage: python3 compiler.py <plik_in> <plik_out>')
+        exit(1)
 
-    # Compile and print generated code
-    compiler.compile_and_print(code)
+    path_in = sys.argv[1]
+    path_out = sys.argv[2]
+    lexer = MyLexer()
+    parser = MyParser()
+
+    with open(path_in) as file:
+        text = file.read()
+        code = parser.parse(lexer.tokenize(text))
+    with open(path_out, "w") as file:
+        file.write(code)
+    print(f'Wynik kompilacji pliku {path_in} zapisany w pliku {path_out}.')
