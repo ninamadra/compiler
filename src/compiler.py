@@ -3,16 +3,27 @@ from lexer import MyLexer
 from parser import MyParser
 
 
-class Compiler:
-    def __init__(self):
-        self.lexer = MyLexer()
-        self.parser = MyParser()
+def process_labels(input_code):
+    labels = []
+    lines = input_code.split('\n')
+    for i, line in enumerate(lines):
+        if line.startswith("label_"):
+            label = line.split()[0]
+            labels.append((label, i + 1))
+            lines[i] = line.replace(label, "", 1).strip()
+
+    for i, line in enumerate(lines):
+        for label, line_number in labels:
+            lines[i] = lines[i].replace(label, str(line_number), 1)
+
+    result_code = '\n'.join(lines)
+    return result_code
 
 
 if __name__ == "__main__":
 
     if len(sys.argv) != 3:
-        print('Usage: python3 compiler.py <plik_in> <plik_out>')
+        print('Usage: python3 compiler.py <in_file> <out_file>')
         exit(1)
 
     path_in = sys.argv[1]
@@ -22,7 +33,9 @@ if __name__ == "__main__":
 
     with open(path_in) as file:
         text = file.read()
-        code = parser.parse(lexer.tokenize(text))
+        code = process_labels(parser.parse(lexer.tokenize(text)))
+        #code = parser.parse(lexer.tokenize(text))
+
     with open(path_out, "w") as file:
         file.write(code)
-    print(f'Wynik kompilacji pliku {path_in} zapisany w pliku {path_out}.')
+    print(f'{path_in} compilation result was saved to the file {path_out}.')
