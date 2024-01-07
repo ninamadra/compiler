@@ -375,22 +375,30 @@ class MyParser(Parser):
 
     @_('PIDENTIFIER')
     def identifier(self, p):
-        pid = self.generator.symbols.getVariable(p.PIDENTIFIER, self.scope)
-        if pid is None:
-            pid = self.generator.symbols.getArray(p.PIDENTIFIER, self.scope)
-        if pid is None:
-            raise Exception(f"PIDENTIFIER {p.PIDENTIFIER} not found")
+        pid = self.generator.getVariable(p.PIDENTIFIER, self.scope)
         if not pid.isPointer:
             return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
         return self.generator.generateAddressFromPointer(pid)
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def identifier(self, p):
-        return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope)
+        pid = self.generator.getArray(p.PIDENTIFIER, self.scope)
+        if not pid.isPointer:
+            return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope)
+        return self.generator.generateArrayElementAddressFromPointer(pid, p.NUMBER, self.scope)
 
     @_('PIDENTIFIER LBRACKET PIDENTIFIER RBRACKET')
     def identifier(self, p):
-        return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope)
+        pid0 = self.generator.getArray(p.PIDENTIFIER0, self.scope)
+        pid1 = self.generator.getVariable(p.PIDENTIFIER1, self.scope)
+        if not pid0.isPointer and not pid1.isPointer:
+            return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope)
+        elif not pid0.isPointer and pid1.isPointer:
+            return self.generator.generateArrayPidentifierElementPointerAddress(pid0, pid1)
+        elif pid0.isPointer and not pid1.isPointer:
+            return self.generator.generateArrayPidentifierPointerElementAddress(pid0, pid1)
+        else:
+            return self.generator.generateArrayPidentifierPointerElementPointerAddress(pid0, pid1)
 
     # error production
 

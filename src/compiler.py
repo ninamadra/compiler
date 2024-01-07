@@ -7,6 +7,7 @@ def process_labels(input_code):
     labels = []
     lines = input_code.split('\n')
 
+    # First pass: Extract labels and update lines
     for i, line in enumerate(lines):
         labels_in_line = []
         while line.strip().startswith("label"):
@@ -17,9 +18,12 @@ def process_labels(input_code):
         labels.extend(labels_in_line)
         lines[i] = line
 
+    # Second pass: Replace label occurrences
     for i, line in enumerate(lines):
         for label, line_number in labels:
-            lines[i] = lines[i].replace(label, str(line_number), 1)
+            words = line.split()
+            if len(words) >= 2 and words[1] == label:
+                lines[i] = ' '.join([words[0], str(line_number)] + words[2:])
 
     result_code = '\n'.join(lines)
     return result_code

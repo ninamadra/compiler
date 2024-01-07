@@ -67,6 +67,14 @@ class MyGenerator:
         array = self.symbols.getArray(pidentifier, scope)
         return self.generateNumber(int(array.address) + int(number))
 
+    def generateArrayElementAddressFromPointer(self, pid, number, scope):
+        code = self.generateNumber(int(pid.address))
+        code += "LOAD a\n"
+        code += "PUT c\n"
+        code += self.generateNumber(int(number))
+        code += "ADD c\n"
+        return code
+
     def generateArrayPidentifierElementAddress(self, pidentifier, index, scope):
         array = self.symbols.getArray(pidentifier, scope)
         index_variable = self.symbols.getVariable(index, scope)
@@ -74,6 +82,34 @@ class MyGenerator:
         code += self.loadNumberFromAddress()
         code += "PUT b\n"
         code += self.generateNumber(int(array.address))
+        code += "ADD b\n"
+        return code
+
+    def generateArrayPidentifierPointerElementAddress(self, arr_pointer, index):
+        code = self.generateNumber(int(index.address))
+        code += "LOAD a\n"  # w a mamy wartosc indeksu
+        code += "PUT b\n"
+        code += self.generateNumber(int(arr_pointer.address)) # w a mamy arr_pointer
+        code += "LOAD a\n"  # w a mamy adres arr
+        code += "ADD b\n"
+        return code
+
+    def generateArrayPidentifierElementPointerAddress(self, arr, index_pointer):
+        code = self.generateNumber(int(index_pointer.address))
+        code += "LOAD a\n" # w a mamy adres indeksu
+        code += "LOAD a\n" # w a mamy wartosc indeksu
+        code += "PUT b\n"
+        code += self.generateNumber(int(arr.address))
+        code += "ADD b\n"
+        return code
+
+    def generateArrayPidentifierPointerElementPointerAddress(self, arr_pointer, index_pointer):
+        code = self.generateNumber(int(index_pointer.address))
+        code += "LOAD a\n"  # w a mamy adres indeksu
+        code += "LOAD a\n"  # w a mamy wartosc indeksu
+        code += "PUT b\n"
+        code += self.generateNumber(int(arr_pointer.address))  # w a mamy arr_pointer
+        code += "LOAD a\n"  # w a mamy adres arr
         code += "ADD b\n"
         return code
 
@@ -95,15 +131,11 @@ class MyGenerator:
             declared_arg = None
             real_arg = None
             if declaration.startswith('T'):
-                print(declaration[2:] + " " + arg)
                 declared_arg = self.getArray(declaration[2:], procedure.scope)
                 real_arg = self.getArray(arg, scope)
             else:
-                print(declaration + " " + arg)
                 declared_arg = self.getVariable(declaration, procedure.scope)
-                print(declared_arg.name, declared_arg.address, declared_arg.scope, declared_arg.isPointer)
                 real_arg = self.getVariable(arg, scope)
-            print(declared_arg.name, declared_arg.address, declared_arg.scope, declared_arg.isPointer)
             code += self.generateNumber(int(declared_arg.address)) # w a mamy adres decl_arg
             code += "PUT h\n"
             code += self.generateNumber(int(real_arg.address)) # w a mamy adres arg a w h decl_arg
