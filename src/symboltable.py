@@ -6,19 +6,25 @@ class SymbolTable:
         self.procedures = []
         self.mem_current = 0
 
-    def addVariable(self, name, scope):
+    def addVariable(self, name, scope, isPointer=False):
         self.checkRedeclaration(name, scope)
-        self.variables.append(Variable(name, self.assignAddress(1), scope))
+        variable = Variable(name, self.assignAddress(1), scope, isPointer)
+        self.variables.append(variable)
+        return variable
 
-    def addArray(self, name, scope, size):
+    def addArray(self, name, scope, size, isPointer=False):
         self.checkRedeclaration(name, scope)
-        self.arrays.append(Array(name, self.assignAddress(size), scope, size))
+        array = Array(name, self.assignAddress(size), scope, size, isPointer)
+        self.arrays.append(array)
+        return array
 
-    def addProcedure(self, name, line):
+    def addProcedure(self, name, line, scope, args_decl):
         for procedure in self.procedures:
             if procedure.name == name:
                 raise Exception(f"Procedure {name} already exists")
-        self.procedures.append(Procedure(name, line))
+        procedure = Procedure(name, line, scope, args_decl, self.addVariable("r_" + name, scope).address)
+        self.procedures.append(procedure)
+        return procedure
 
     def checkRedeclaration(self, name, scope):
         for var in self.variables:
@@ -37,13 +43,13 @@ class SymbolTable:
         for variable in self.variables:
             if variable.name == name and variable.scope == scope:
                 return variable
-        raise Exception(f"Variable '{name}' not found in scope '{scope}'")
+        return None
 
     def getArray(self, name, scope):
         for array in self.arrays:
             if array.name == name and array.scope == scope:
                 return array
-        raise Exception(f"Array '{name}' not found in scope '{scope}'")
+        return None
 
     def getProcedure(self, name):
         for procedure in self.procedures:
@@ -51,23 +57,39 @@ class SymbolTable:
                 return procedure
         return Exception(f"Procedure '{name}' does not exist'")
 
+    def readSymbols(self):
+        print("variables")
+        for var in self.variables:
+            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " isPointer: ", var.isPointer)
+        print("arrays")
+        for var in self.arrays:
+            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " size: ", var.size, " isPointer: ", var.isPointer)
+        print("procedures")
+        for procedure in self.procedures:
+            print("name: ", procedure.name, " label: ", procedure.line, "args_decl: ", str(procedure.args_decl), "return adress: ", procedure.returnAddress)
+
 
 class Variable:
-    def __init__(self, name, address, scope, isInitialized=False):
+    def __init__(self, name, address, scope, isPointer=False, isInitialized=False):
         self.name = name
         self.address = address
         self.scope = scope
+        self.isPointer = isPointer
 
 
 class Array:
-    def __init__(self, name, address, scope, size):
+    def __init__(self, name, address, scope, size, isPointer=False):
         self.name = name
         self.address = address
         self.scope = scope
         self.size = size
+        self.isPointer = isPointer
 
 
 class Procedure:
-    def __init__(self, name, line):
+    def __init__(self, name, line, scope, args_decl, returnAddress=0):
         self.name = name
-        self.address = line
+        self.line = line
+        self.scope = scope
+        self.args_decl = args_decl
+        self.returnAddress = returnAddress

@@ -6,11 +6,16 @@ from parser import MyParser
 def process_labels(input_code):
     labels = []
     lines = input_code.split('\n')
+
     for i, line in enumerate(lines):
-        if line.startswith("label_"):
+        labels_in_line = []
+        while line.strip().startswith("label"):
             label = line.split()[0]
-            labels.append((label, i + 1))
-            lines[i] = line.replace(label, "", 1).strip()
+            labels_in_line.append((label, i))
+            line = line.replace(label, "", 1).strip()
+
+        labels.extend(labels_in_line)
+        lines[i] = line
 
     for i, line in enumerate(lines):
         for label, line_number in labels:

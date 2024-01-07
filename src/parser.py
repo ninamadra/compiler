@@ -1,4 +1,5 @@
 from sly import Parser
+
 from lexer import MyLexer
 from generator import MyGenerator
 
@@ -13,33 +14,53 @@ class MyParser(Parser):
 
     def __init__(self):
         self.generator = MyGenerator()
-        self.scope = ""
+        self.scope = 0
         self.label = 0
 
     # program_all productions
 
     @_('procedures main')
     def program_all(self, p):
+        self.generator.readSymbolTable()
         if not p.procedures:
             return p.main
-        return p.procedures + p.main
+        return p.main + p.procedures
 
     # procedures productions
 
-    # TODO
     @_('procedures PROCEDURE proc_head IS declarations IN commands END')
     def procedures(self, p):
-        return 'procedures'
+        self.scope += 1
+        return (
+                p.proc_head[0] + " " +
+                p.commands +
+                self.generator.generateNumber(p.proc_head[1]) +
+                self.generator.loadNumberFromAddress() +
+                "INC a\n" +
+                "INC a\n" +
+                "INC a\n" +
+                "JUMPR a\n" +
+                p.procedures
+        )
 
-    # TODO
     @_('procedures PROCEDURE proc_head IS IN commands END')
     def procedures(self, p):
-        return 'procedures'
+        self.scope += 1
+        return (
+                p.proc_head[0] + " " +
+                p.commands +
+                self.generator.generateNumber(p.proc_head[1]) +
+                self.generator.loadNumberFromAddress() +
+                "INC a\n" +
+                "INC a\n" +
+                "INC a\n" +
+                "JUMPR a\n" +
+                p.procedures
+        )
 
-    # TODO
     @_('')
     def procedures(self, p):
-        return []
+        return ""
 
     # main productions
 
@@ -70,12 +91,12 @@ class MyParser(Parser):
     @_('IF condition THEN commands ELSE commands ENDIF')
     def command(self, p):
         return (
-            p.condition +
-            "JZERO " + self.__addLabel() + "\n" +
-            p.commands0 +
-            "JUMP " + self.__addLabel() + "\n" +
-            self.__getLabel(-1) + " " + p.commands1 +
-            self.__getLabel() + " RST a\n"
+                p.condition +
+                "JZERO " + self.__addLabel() + "\n" +
+                p.commands0 +
+                "JUMP " + self.__addLabel() + "\n" +
+                self.__getLabel(-1) + " " + p.commands1 +
+                self.__getLabel() + " "
         )
 
     @_('IF condition THEN commands ENDIF')
@@ -84,29 +105,29 @@ class MyParser(Parser):
                 p.condition +
                 "JZERO " + self.__addLabel() + "\n" +
                 p.commands +
-                self.__getLabel() + " RST a\n"
+                self.__getLabel() + " "
         )
 
     @_('WHILE condition DO commands ENDWHILE')
     def command(self, p):
         return (
-                self.__addLabel() + " RST a\n" +
+                self.__addLabel() + " " +
                 p.condition +
                 "JZERO " + self.__getLabel(1) + "\n" +
                 p.commands +
-                self.__addLabel() + " JUMP " + self.__getLabel(-1) + "\n"
+                "JUMP " + self.__getLabel() + "\n" +
+                self.__addLabel() + " "
         )
 
     @_('REPEAT commands UNTIL condition SEMICOLON')
     def command(self, p):
         return (
-            self.__addLabel() + " " +
-            p.commands +
-            p.condition +
-            "JZERO " + self.__getLabel() + "\n"
+                self.__addLabel() + " " +
+                p.commands +
+                p.condition +
+                "JZERO " + self.__getLabel() + "\n"
         )
 
-    # TODO
     @_('proc_call SEMICOLON')
     def command(self, p):
         return p.proc_call
@@ -126,17 +147,26 @@ class MyParser(Parser):
 
     # proc_head productions
 
-    # TODO
     @_('PIDENTIFIER LPAREN args_decl RPAREN')
     def proc_head(self, p):
-        return ProcHeadNode(p.PIDENTIFIER, p.args_decl)
+        procedure = self.generator.declareProcedure(
+            p.PIDENTIFIER,
+            self.__addLabel(),
+            self.scope,
+            p.args_decl,
+        )
+        return self.__getLabel(), procedure.returnAddress
 
     # proc_call productions
 
-    # TODO
     @_('PIDENTIFIER LPAREN args RPAREN')
     def proc_call(self, p):
-        return ProcCallNode(p.PIDENTIFIER, p.args)
+        procedure = self.generator.getProcedure(p.PIDENTIFIER)
+        return (
+                self.generator.assignArguments(procedure, p.args, self.scope) +
+                self.generator.assignReturnAddress(procedure.returnAddress) +
+                "JUMP " + procedure.line + "\n"
+        )
 
     # declarations productions
 
@@ -162,37 +192,35 @@ class MyParser(Parser):
 
     # args_decl productions
 
-    # TODO
     @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, p):
-        return p.PIDENTIFIER
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, True)
+        return p.args_decl + [p.PIDENTIFIER]
 
-    # TODO
     @_('args_decl COMMA T PIDENTIFIER')
     def args_decl(self, p):
-        return p.PIDENTIFIER
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, True)
+        return p.args_decl + ["T " + p.PIDENTIFIER]
 
-    # TODO
     @_('PIDENTIFIER')
     def args_decl(self, p):
-        return p.PIDENTIFIER
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, True)
+        return [p.PIDENTIFIER]
 
-    # TODO
     @_('T PIDENTIFIER')
     def args_decl(self, p):
-        return p.PIDENTIFIER
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, True)
+        return ["T " + p.PIDENTIFIER]
 
     # args productions
 
-    # TODO
     @_('args COMMA PIDENTIFIER')
     def args(self, p):
-        return *p.args.args, p.PIDENTIFIER
+        return p.args + [p.PIDENTIFIER]
 
-    # TODO
     @_('PIDENTIFIER')
     def args(self, p):
-        return p.PIDENTIFIER
+        return [p.PIDENTIFIER]
 
     # expression productions
 
@@ -222,8 +250,8 @@ class MyParser(Parser):
                 "PUT d\n" +
                 p.value1 +
                 "RST e\n" +
-                self.__addLabel() + " RST h\n"
-                "JZERO " + self.__getLabel(2) + "\n" +
+                self.__addLabel() + " RST f\n"
+                                    "JZERO " + self.__getLabel(2) + "\n" +
                 "PUT b\n" +
                 "PUT c\n" +
                 "SHR b\n" +
@@ -255,33 +283,35 @@ class MyParser(Parser):
     @_('value EQUAL value')
     def condition(self, p):
         return (
-            p.value0 +
-            "PUT c\n" +
-            p.value1 +
-            "PUT b\n" +
-            "SUB c\n" +
-            "JPOS " + self.__getLabel(1) + "\n" +
-            "GET c\n" +
-            "SUB b\n" +
-            "JPOS " + self.__getLabel(1) + "\n" +
-            "INC a\n" +
-            self.__addLabel() + " JUMP " + self.__getLabel(1) + "\n" +
-            self.__addLabel() + " RST a\n"
+                p.value0 +
+                "PUT c\n" +
+                p.value1 +
+                "PUT b\n" +
+                "SUB c\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "GET c\n" +
+                "SUB b\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "INC a\n" +
+                "JUMP " + self.__getLabel(2) + "\n" +
+                self.__addLabel() + " RST a\n" +
+                self.__addLabel() + " "
         )
 
     @_('value NOTEQUAL value')
     def condition(self, p):
         return (
-            p.value0 +
-            "PUT c\n" +
-            p.value1 +
-            "PUT b\n" +
-            "SUB c\n" +
-            "JPOS " + self.__getLabel(1) + "\n" +
-            "GET c\n" +
-            "SUB b\n" +
-            "JPOS " + self.__getLabel(1) + "\n" +
-            self.__addLabel() + " RST a\n"
+                p.value0 +
+                "PUT c\n" +
+                p.value1 +
+                "PUT b\n" +
+                "SUB c\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "GET c\n" +
+                "SUB b\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "RST a\n" +
+                self.__addLabel() + " "
         )
 
     @_('value GREATER value')
@@ -309,10 +339,12 @@ class MyParser(Parser):
                 "PUT c\n" +
                 p.value1 +
                 "SUB c\n" +
-                "JPOS " + self.__addLabel() + "\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
                 "INC a\n" +
-                self.__getLabel() + " JPOS " + self.__addLabel() + "\n" +
-                self.__getLabel() + " RST a\n"
+                "JPOS " + self.__getLabel(2) + "\n" +
+                self.__addLabel() + " RST a\n" +
+                self.__addLabel() + " "
+
         )
 
     @_('value LESSEQUAL value')
@@ -322,10 +354,11 @@ class MyParser(Parser):
                 "PUT c\n" +
                 p.value0 +
                 "SUB c\n" +
-                "JPOS " + self.__addLabel() + "\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
                 "INC a\n" +
-                self.__getLabel() + " JPOS " + self.__addLabel() + "\n" +
-                self.__getLabel() + " RST a\n"
+                "JPOS " + self.__getLabel(2) + "\n" +
+                self.__addLabel() + " RST a\n" +
+                self.__addLabel() + " "
         )
 
     # value productions
@@ -342,7 +375,14 @@ class MyParser(Parser):
 
     @_('PIDENTIFIER')
     def identifier(self, p):
-        return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
+        pid = self.generator.symbols.getVariable(p.PIDENTIFIER, self.scope)
+        if pid is None:
+            pid = self.generator.symbols.getArray(p.PIDENTIFIER, self.scope)
+        if pid is None:
+            raise Exception(f"PIDENTIFIER {p.PIDENTIFIER} not found")
+        if not pid.isPointer:
+            return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
+        return self.generator.generateAddressFromPointer(pid)
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def identifier(self, p):
@@ -369,4 +409,3 @@ class MyParser(Parser):
             return "label_" + str(self.label)
         else:
             return "label_" + str(self.label + off)
-
