@@ -87,17 +87,17 @@ class MyGenerator:
 
     def generateArrayPidentifierPointerElementAddress(self, arr_pointer, index):
         code = self.generateNumber(int(index.address))
-        code += "LOAD a\n"  # w a mamy wartosc indeksu
+        code += "LOAD a\n"
         code += "PUT b\n"
-        code += self.generateNumber(int(arr_pointer.address)) # w a mamy arr_pointer
-        code += "LOAD a\n"  # w a mamy adres arr
+        code += self.generateNumber(int(arr_pointer.address))
+        code += "LOAD a\n"
         code += "ADD b\n"
         return code
 
     def generateArrayPidentifierElementPointerAddress(self, arr, index_pointer):
         code = self.generateNumber(int(index_pointer.address))
-        code += "LOAD a\n" # w a mamy adres indeksu
-        code += "LOAD a\n" # w a mamy wartosc indeksu
+        code += "LOAD a\n"
+        code += "LOAD a\n"
         code += "PUT b\n"
         code += self.generateNumber(int(arr.address))
         code += "ADD b\n"
@@ -105,11 +105,11 @@ class MyGenerator:
 
     def generateArrayPidentifierPointerElementPointerAddress(self, arr_pointer, index_pointer):
         code = self.generateNumber(int(index_pointer.address))
-        code += "LOAD a\n"  # w a mamy adres indeksu
-        code += "LOAD a\n"  # w a mamy wartosc indeksu
+        code += "LOAD a\n"
+        code += "LOAD a\n"
         code += "PUT b\n"
-        code += self.generateNumber(int(arr_pointer.address))  # w a mamy arr_pointer
-        code += "LOAD a\n"  # w a mamy adres arr
+        code += self.generateNumber(int(arr_pointer.address))
+        code += "LOAD a\n"
         code += "ADD b\n"
         return code
 
@@ -136,14 +136,14 @@ class MyGenerator:
             else:
                 declared_arg = self.getVariable(declaration, procedure.scope)
                 real_arg = self.getVariable(arg, scope)
-            code += self.generateNumber(int(declared_arg.address)) # w a mamy adres decl_arg
+
+            code += self.generateNumber(int(declared_arg.address))
             code += "PUT h\n"
-            code += self.generateNumber(int(real_arg.address)) # w a mamy adres arg a w h decl_arg
+            code += self.generateNumber(int(real_arg.address))
+            if real_arg.isPointer:
+                code += "LOAD a\n"
             code += "STORE h\n"
         return code
-            # kod ktory pod adres declared_arg wstawi
-            # real_arg.address jesli nie jest pointerem
-            # i wartosc z adresu real_arg jesli jest
 
 
 

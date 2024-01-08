@@ -250,8 +250,7 @@ class MyParser(Parser):
                 "PUT d\n" +
                 p.value1 +
                 "RST e\n" +
-                self.__addLabel() + " RST f\n"
-                                    "JZERO " + self.__getLabel(2) + "\n" +
+                self.__addLabel() + " JZERO " + self.__getLabel(2) + "\n" +
                 "PUT b\n" +
                 "PUT c\n" +
                 "SHR b\n" +
@@ -260,23 +259,52 @@ class MyParser(Parser):
                 "JZERO " + self.__getLabel(1) + "\n" +
                 "GET d\n" +
                 "ADD e\n" +
-                self.__addLabel() + " PUT e\n" +
-                "SHL d\n" +
+                "PUT e\n" +
+                self.__addLabel() + " SHL d\n" +
                 "SHR c\n" +
                 "GET c\n" +
-                self.__addLabel() + " JUMP " + self.__getLabel(-2) + "\n" +
-                "GET e\n"
+                "JUMP " + self.__getLabel(-1) + "\n" +
+                self.__addLabel() + " GET e\n"
         )
 
-    # TODO
+    # TODO: optimize
     @_('value DIVIDE value')
     def expression(self, p):
-        return p.value0, p.value1
+        return (
+                p.value0 +
+                "PUT c\n" +
+                p.value1 +
+                "PUT b\n" +
+                "RST d\n" +
+                self.__addLabel() + " SUB c\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "INC d\n" +
+                "GET c\n" +
+                "SUB b\n" +
+                "PUT c\n" +
+                "GET b\n" +
+                "JUMP " + self.__getLabel() + "\n" +
+                self.__addLabel() + " GET d\n"
+        )
 
-    # TODO
+    # TODO: optimize
     @_('value MOD value')
     def expression(self, p):
-        return p.value0, p.value1
+        return (
+                p.value0 +
+                "PUT c\n" +
+                p.value1 +
+                "PUT b\n" +
+                self.__addLabel() + " SUB c\n" +
+                "JPOS " + self.__getLabel(1) + "\n" +
+                "INC d\n" +
+                "GET c\n" +
+                "SUB b\n" +
+                "PUT c\n" +
+                "GET b\n" +
+                "JUMP " + self.__getLabel() + "\n" +
+                self.__addLabel() + " GET c\n"
+        )
 
     # condition productions
 
@@ -404,9 +432,9 @@ class MyParser(Parser):
 
     def error(self, p):
         if p:
-            print(f"Syntax error near: {p.type}, {p.value}")
+            raise Exception(f"Syntax error near: {p.type}, {p.value}")
         else:
-            print("Syntax error: Unexpected end of input")
+            raise Exception("Syntax error: Unexpected end of input")
 
     def __addLabel(self):
         self.label += 1
