@@ -9,8 +9,11 @@ class MyGenerator:
     def readSymbolTable(self):
         return self.symbols.readSymbols()
 
-    def declareVariable(self, name, scope, line, isPointer=False):
-        return self.symbols.addVariable(name, scope, isPointer, line)
+    def declareVariable(self, name, scope, line, isPointer=False, isInitialized=False):
+        return self.symbols.addVariable(name, scope, isPointer, line, isInitialized)
+
+    def markVariableInitialized(self, name, scope):
+        self.symbols.markVariableInitialized(name, scope)
 
     def getVariable(self, name, scope, line):
         var = self.symbols.getVariable(name, scope)

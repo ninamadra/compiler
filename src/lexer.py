@@ -63,7 +63,7 @@ class MyLexer(Lexer):
 
     @_(r'#.*')
     def COMMENT(self, t):
-        self.lineno += 1
+        self.ignore
 
     @_(r'\n+')
     def NEWLINE(self, t):

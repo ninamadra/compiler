@@ -88,8 +88,8 @@ class MyParser(Parser):
 
     @_("identifier ASSIGN expression SEMICOLON")
     def command(self, p):
-        print()
-        return p.identifier + "PUT g\n" + p.expression + "STORE g\n"
+        self.generator.markVariableInitialized(p.identifier[1], self.scope)
+        return p.identifier[0] + "PUT g\n" + p.expression + "STORE g\n"
 
     @_('IF condition THEN commands ELSE commands ENDIF')
     def command(self, p):
@@ -137,8 +137,9 @@ class MyParser(Parser):
 
     @_('READ identifier SEMICOLON')
     def command(self, p):
+        self.generator.markVariableInitialized(p.identifier[1], self.scope)
         return (
-                p.identifier +
+                p.identifier[0] +
                 "PUT b\n" +
                 "READ\n" +
                 "STORE b\n"
@@ -198,7 +199,7 @@ class MyParser(Parser):
 
     @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0,True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0,True, True)
         return p.args_decl + [p.PIDENTIFIER]
 
     @_('args_decl COMMA T PIDENTIFIER')
@@ -208,7 +209,7 @@ class MyParser(Parser):
 
     @_('PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope,0, True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope,0, True, True)
         return [p.PIDENTIFIER]
 
     @_('T PIDENTIFIER')
@@ -420,7 +421,10 @@ class MyParser(Parser):
 
     @_('identifier')
     def value(self, p):
-        return p.identifier + self.generator.loadNumberFromAddress()
+        if p.identifier[1] != "NUM":
+            if self.generator.getVariable(p.identifier[1], self.scope, p.lineno).isInitialized is False:
+                print("WARNING: Variable '" + p.identifier[1] + "' may not be initialized at line " + str(p.lineno) + ".")
+        return p.identifier[0] + self.generator.loadNumberFromAddress()
 
     # identifier productions
 
@@ -428,28 +432,28 @@ class MyParser(Parser):
     def identifier(self, p):
         pid = self.generator.getVariable(p.PIDENTIFIER, self.scope, p.lineno)
         if not pid.isPointer:
-            return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
-        return self.generator.generateAddressFromPointer(pid)
+            return self.generator.generateAddress(p.PIDENTIFIER, self.scope), p.PIDENTIFIER
+        return self.generator.generateAddressFromPointer(pid), p.PIDENTIFIER
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def identifier(self, p):
         pid = self.generator.getArray(p.PIDENTIFIER, self.scope, p.lineno)
         if not pid.isPointer:
-            return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope)
-        return self.generator.generateArrayElementAddressFromPointer(pid, p.NUMBER, self.scope)
+            return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope), "NUM"
+        return self.generator.generateArrayElementAddressFromPointer(pid, p.NUMBER, self.scope), "NUM"
 
     @_('PIDENTIFIER LBRACKET PIDENTIFIER RBRACKET')
     def identifier(self, p):
         pid0 = self.generator.getArray(p.PIDENTIFIER0, self.scope, p.lineno)
         pid1 = self.generator.getVariable(p.PIDENTIFIER1, self.scope, p.lineno)
         if not pid0.isPointer and not pid1.isPointer:
-            return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope)
+            return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope), p.PIDENTIFIER1
         elif not pid0.isPointer and pid1.isPointer:
-            return self.generator.generateArrayPidentifierElementPointerAddress(pid0, pid1)
+            return self.generator.generateArrayPidentifierElementPointerAddress(pid0, pid1), p.PIDENTIFIER1
         elif pid0.isPointer and not pid1.isPointer:
-            return self.generator.generateArrayPidentifierPointerElementAddress(pid0, pid1)
+            return self.generator.generateArrayPidentifierPointerElementAddress(pid0, pid1), p.PIDENTIFIER1
         else:
-            return self.generator.generateArrayPidentifierPointerElementPointerAddress(pid0, pid1)
+            return self.generator.generateArrayPidentifierPointerElementPointerAddress(pid0, pid1), p.PIDENTIFIER1
 
     # error production
 

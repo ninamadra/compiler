@@ -6,9 +6,9 @@ class SymbolTable:
         self.procedures = []
         self.mem_current = 0
 
-    def addVariable(self, name, scope, isPointer, line):
+    def addVariable(self, name, scope, isPointer, line, isInitialized=False):
         self.checkRedeclaration(name, scope, line)
-        variable = Variable(name, self.assignAddress(1), scope, isPointer)
+        variable = Variable(name, self.assignAddress(1), scope, isPointer, isInitialized)
         self.variables.append(variable)
         return variable
 
@@ -29,6 +29,11 @@ class SymbolTable:
     def markProceduresDeclared(self):
         for procedure in self.procedures:
             procedure.isDeclared = True
+
+    def markVariableInitialized(self, name, scope):
+        for variable in self.variables:
+            if variable.name == name and variable.scope == scope:
+                variable.isInitialized = True
 
     def checkRedeclaration(self, name, scope, line):
         for var in self.variables:
@@ -66,7 +71,7 @@ class SymbolTable:
     def readSymbols(self):
         print("variables")
         for var in self.variables:
-            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " isPointer: ", var.isPointer)
+            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " isPointer: ", var.isPointer, " isInitialized: " + str(var.isInitialized))
         print("arrays")
         for var in self.arrays:
             print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " size: ", var.size, " isPointer: ", var.isPointer)
