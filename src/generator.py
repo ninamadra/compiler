@@ -9,29 +9,38 @@ class MyGenerator:
     def readSymbolTable(self):
         return self.symbols.readSymbols()
 
-    def declareVariable(self, name, scope, isPointer=False):
-        return self.symbols.addVariable(name, scope, isPointer)
+    def declareVariable(self, name, scope, line, isPointer=False):
+        return self.symbols.addVariable(name, scope, isPointer, line)
 
-    def getVariable(self, name, scope):
+    def getVariable(self, name, scope, line):
         var = self.symbols.getVariable(name, scope)
+        arr = self.symbols.getArray(name, scope)
         if var is None:
-            raise Exception(f"Variable '{name}' not found in scope '{scope}'")
+            if arr is not None:
+                raise Exception(f"Incorrect array '{name}' usage at line {line}.")
+            raise Exception(f"Variable '{name}' not found, line: {line}.")
         return var
 
-    def getArray(self, name, scope):
+    def getArray(self, name, scope, line):
         arr = self.symbols.getArray(name, scope)
+        var = self.symbols.getVariable(name, scope)
         if arr is None:
-            raise Exception(f"Array '{name}' not found in scope '{scope}'")
+            if var is not None:
+                raise Exception(f"Incorrect variable '{name}' usage at line {line}.")
+            raise Exception(f"Array '{name}' not found, line: {line}.")
         return arr
 
-    def getProcedure(self, name):
-        return self.symbols.getProcedure(name)
+    def getProcedure(self, name, line):
+        return self.symbols.getProcedure(name, line)
 
-    def declareArray(self, name, scope, size, isPointer=False):
-        return self.symbols.addArray(name, scope, int(size), isPointer)
+    def declareArray(self, name, scope, size, line, isPointer=False):
+        return self.symbols.addArray(name, scope, int(size), isPointer, line)
 
-    def declareProcedure(self, name, line, scope, args_decl):
-        return self.symbols.addProcedure(name, line, scope, args_decl)
+    def declareProcedure(self, name, line, scope, args_decl, lineno, isDeclared=False):
+        return self.symbols.addProcedure(name, line, scope, args_decl, lineno, isDeclared)
+
+    def markProceduresDeclared(self):
+        self.symbols.markProceduresDeclared()
 
     @staticmethod
     def loadNumberFromAddress():
@@ -116,13 +125,13 @@ class MyGenerator:
     def assignReturnAddress(self, returnAddress):
         code = self.generateNumber(int(returnAddress))
         code += (
-            "PUT b\n" +
-            "STRK a\n" +
-            "STORE b\n"
+                "PUT b\n" +
+                "STRK a\n" +
+                "STORE b\n"
         )
         return code
 
-    def assignArguments(self, procedure, arguments, scope):
+    def assignArguments(self, procedure, arguments, scope, line):
         if len(arguments) != len(procedure.args_decl):
             raise Exception(f"Incorrect procedure call: {procedure.name}({arguments})")
 
@@ -131,11 +140,32 @@ class MyGenerator:
             declared_arg = None
             real_arg = None
             if declaration.startswith('T'):
-                declared_arg = self.getArray(declaration[2:], procedure.scope)
-                real_arg = self.getArray(arg, scope)
+                declared_arg = self.symbols.getArray(declaration[2:], procedure.scope)
+                if declared_arg is None:
+                    raise Exception(
+                        f"Argument T '{declaration[2:]}' not declared for procedure '{procedure.name}', line: {line}.")
+                real_arg = self.symbols.getArray(arg, scope)
+                real_arg2 = self.symbols.getVariable(arg, scope)
+                if real_arg is None:
+                    if real_arg2 is not None:
+                        raise Exception(
+                            f"Incorrect '{procedure.name}' procedure call with wrong argument usage for argument: '{arg}' at line {line}.")
+                    raise Exception(
+                        f"Argument T '{arg}' in procedure call {procedure.name}({arguments}) not found, line: {line}.")
+
             else:
-                declared_arg = self.getVariable(declaration, procedure.scope)
-                real_arg = self.getVariable(arg, scope)
+                declared_arg = self.symbols.getVariable(declaration, procedure.scope)
+                if declared_arg is None:
+                    raise Exception(
+                        f"Argument '{declaration[2:]}' not declared for procedure '{procedure.name}, line: {line}.")
+                real_arg = self.symbols.getVariable(arg, scope)
+                real_arg2 = self.symbols.getArray(arg, scope)
+                if real_arg is None:
+                    if real_arg2 is not None:
+                        raise Exception(
+                            f"Incorrect '{procedure.name}' procedure call with wrong argument usage for argument: '{arg}' at line {line}.")
+                    raise Exception(
+                        f"Argument '{arg}' in procedure call {procedure.name}({arguments}) not found, line: {line}.")
 
             code += self.generateNumber(int(declared_arg.address))
             code += "PUT h\n"
@@ -144,7 +174,3 @@ class MyGenerator:
                 code += "LOAD a\n"
             code += "STORE h\n"
         return code
-
-
-
-

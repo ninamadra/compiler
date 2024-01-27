@@ -63,11 +63,11 @@ class MyLexer(Lexer):
 
     @_(r'#.*')
     def COMMENT(self, t):
-        t.lineno += 1
+        self.lineno += 1
 
     @_(r'\n+')
     def NEWLINE(self, t):
-        t.lineno += t.value.count('\n')
+        self.lineno += t.value.count('\n')
 
     def error(self, t):
         print(f"Illegal character '{t.value[0]}' at line {self.lineno}")

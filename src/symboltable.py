@@ -6,33 +6,37 @@ class SymbolTable:
         self.procedures = []
         self.mem_current = 0
 
-    def addVariable(self, name, scope, isPointer=False):
-        self.checkRedeclaration(name, scope)
+    def addVariable(self, name, scope, isPointer, line):
+        self.checkRedeclaration(name, scope, line)
         variable = Variable(name, self.assignAddress(1), scope, isPointer)
         self.variables.append(variable)
         return variable
 
-    def addArray(self, name, scope, size, isPointer=False):
-        self.checkRedeclaration(name, scope)
+    def addArray(self, name, scope, size, isPointer, line):
+        self.checkRedeclaration(name, scope, line)
         array = Array(name, self.assignAddress(size), scope, size, isPointer)
         self.arrays.append(array)
         return array
 
-    def addProcedure(self, name, line, scope, args_decl):
+    def addProcedure(self, name, line, scope, args_decl, lineno, isDeclared):
         for procedure in self.procedures:
             if procedure.name == name:
-                raise Exception(f"Procedure {name} already exists")
-        procedure = Procedure(name, line, scope, args_decl, self.addVariable("r_" + name, scope).address)
+                raise Exception(f"Procedure {name} already exists, line: {lineno}.")
+        procedure = Procedure(name, line, scope, args_decl, self.addVariable("r_" + name, scope, False, lineno).address, isDeclared)
         self.procedures.append(procedure)
         return procedure
 
-    def checkRedeclaration(self, name, scope):
+    def markProceduresDeclared(self):
+        for procedure in self.procedures:
+            procedure.isDeclared = True
+
+    def checkRedeclaration(self, name, scope, line):
         for var in self.variables:
             if var.name == name and var.scope == scope:
-                raise Exception(f"Variable {name} already declared in scope {scope}")
+                raise Exception(f"Variable with name '{name}' already declared in this scope, at line {line}.")
         for arr in self.arrays:
             if arr.name == name and arr.scope == scope:
-                raise Exception(f"Array {name} already declared in scope {scope}")
+                raise Exception(f"Array with name '{name}' already declared in this scope, at line {line}.")
 
     def assignAddress(self, size):
         address = self.mem_current
@@ -51,11 +55,13 @@ class SymbolTable:
                 return array
         return None
 
-    def getProcedure(self, name):
+    def getProcedure(self, name, line):
         for procedure in self.procedures:
             if procedure.name == name:
+                if procedure.isDeclared is False:
+                    raise Exception(f"Recursive procedure call for procedure '{procedure.name}' at line {line}.")
                 return procedure
-        return Exception(f"Procedure '{name}' does not exist'")
+        raise Exception(f"Procedure '{name}' does not exist, line: {line}.")
 
     def readSymbols(self):
         print("variables")
@@ -66,7 +72,7 @@ class SymbolTable:
             print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " size: ", var.size, " isPointer: ", var.isPointer)
         print("procedures")
         for procedure in self.procedures:
-            print("name: ", procedure.name, " label: ", procedure.line, "args_decl: ", str(procedure.args_decl), "return adress: ", procedure.returnAddress)
+            print("name: ", procedure.name, " label: ", procedure.line, "args_decl: ", str(procedure.args_decl), "return address: ", procedure.returnAddress, "declared: ", procedure.isDeclared)
 
 
 class Variable:
@@ -75,6 +81,7 @@ class Variable:
         self.address = address
         self.scope = scope
         self.isPointer = isPointer
+        self.isInitialized = isInitialized
 
 
 class Array:
@@ -87,9 +94,10 @@ class Array:
 
 
 class Procedure:
-    def __init__(self, name, line, scope, args_decl, returnAddress=0):
+    def __init__(self, name, line, scope, args_decl, returnAddress, isDeclared):
         self.name = name
         self.line = line
         self.scope = scope
         self.args_decl = args_decl
         self.returnAddress = returnAddress
+        self.isDeclared = isDeclared

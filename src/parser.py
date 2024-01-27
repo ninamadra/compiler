@@ -30,6 +30,7 @@ class MyParser(Parser):
 
     @_('procedures PROCEDURE proc_head IS declarations IN commands END')
     def procedures(self, p):
+        self.generator.markProceduresDeclared()
         self.scope += 1
         return (
                 p.proc_head[0] + " " +
@@ -45,6 +46,7 @@ class MyParser(Parser):
 
     @_('procedures PROCEDURE proc_head IS IN commands END')
     def procedures(self, p):
+        self.generator.markProceduresDeclared()
         self.scope += 1
         return (
                 p.proc_head[0] + " " +
@@ -86,7 +88,8 @@ class MyParser(Parser):
 
     @_("identifier ASSIGN expression SEMICOLON")
     def command(self, p):
-        return p.identifier + "PUT f\n" + p.expression + "STORE f\n"
+        print()
+        return p.identifier + "PUT g\n" + p.expression + "STORE g\n"
 
     @_('IF condition THEN commands ELSE commands ENDIF')
     def command(self, p):
@@ -154,6 +157,7 @@ class MyParser(Parser):
             self.__addLabel(),
             self.scope,
             p.args_decl,
+            p.lineno
         )
         return self.__getLabel(), procedure.returnAddress
 
@@ -161,9 +165,9 @@ class MyParser(Parser):
 
     @_('PIDENTIFIER LPAREN args RPAREN')
     def proc_call(self, p):
-        procedure = self.generator.getProcedure(p.PIDENTIFIER)
+        procedure = self.generator.getProcedure(p.PIDENTIFIER, p.lineno)
         return (
-                self.generator.assignArguments(procedure, p.args, self.scope) +
+                self.generator.assignArguments(procedure, p.args, self.scope, p.lineno) +
                 self.generator.assignReturnAddress(procedure.returnAddress) +
                 "JUMP " + procedure.line + "\n"
         )
@@ -172,44 +176,44 @@ class MyParser(Parser):
 
     @_('declarations COMMA PIDENTIFIER')
     def declarations(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, p.lineno)
         return
 
     @_('declarations COMMA PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def declarations(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER, p.lineno)
         return
 
     @_('PIDENTIFIER')
     def declarations(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, p.lineno)
         return
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def declarations(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, p.NUMBER, p.lineno)
         return
 
     # args_decl productions
 
     @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope, True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0,True)
         return p.args_decl + [p.PIDENTIFIER]
 
     @_('args_decl COMMA T PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, True)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0,True)
         return p.args_decl + ["T " + p.PIDENTIFIER]
 
     @_('PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope, True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope,0, True)
         return [p.PIDENTIFIER]
 
     @_('T PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, True)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0,True)
         return ["T " + p.PIDENTIFIER]
 
     # args productions
@@ -267,27 +271,39 @@ class MyParser(Parser):
                 self.__addLabel() + " GET e\n"
         )
 
-    # TODO: optimize
     @_('value DIVIDE value')
     def expression(self, p):
         return (
+                "RST f\n" +
                 p.value0 +
                 "PUT c\n" +
                 p.value1 +
                 "PUT b\n" +
-                "RST d\n" +
+                self.__addLabel() + " SUB c\n" +
+                "JPOS " + self.__getLabel(3) + "\n" +
+                "RST e\n" +
+                "INC e\n" +
+                "GET b\n" +
+                "PUT d\n" +
                 self.__addLabel() + " SUB c\n" +
                 "JPOS " + self.__getLabel(1) + "\n" +
-                "INC d\n" +
-                "GET c\n" +
-                "SUB b\n" +
-                "PUT c\n" +
-                "GET b\n" +
+                "SHL d\n" +
+                "SHL e\n" +
+                "GET d\n" +
                 "JUMP " + self.__getLabel() + "\n" +
-                self.__addLabel() + " GET d\n"
+                self.__addLabel() + " SHR d\n" +
+                "SHR e\n" +
+                "GET c\n" +
+                "SUB d\n" +
+                "PUT c\n" +
+                "GET f\n" +
+                "ADD e\n" +
+                "PUT f\n" +
+                "GET b\n" +
+                "JUMP " + self.__getLabel(-2) + "\n" +
+                self.__addLabel() + " GET f\n"
         )
 
-    # TODO: optimize
     @_('value MOD value')
     def expression(self, p):
         return (
@@ -296,13 +312,20 @@ class MyParser(Parser):
                 p.value1 +
                 "PUT b\n" +
                 self.__addLabel() + " SUB c\n" +
+                "JPOS " + self.__getLabel(3) + "\n" +
+                "GET b\n" +
+                "PUT d\n" +
+                self.__addLabel() + " SUB c\n" +
                 "JPOS " + self.__getLabel(1) + "\n" +
-                "INC d\n" +
+                "SHL d\n" +
+                "GET d\n" +
+                "JUMP " + self.__getLabel() + "\n" +
+                self.__addLabel() + " SHR d\n" +
                 "GET c\n" +
-                "SUB b\n" +
+                "SUB d\n" +
                 "PUT c\n" +
                 "GET b\n" +
-                "JUMP " + self.__getLabel() + "\n" +
+                "JUMP " + self.__getLabel(-2) + "\n" +
                 self.__addLabel() + " GET c\n"
         )
 
@@ -403,22 +426,22 @@ class MyParser(Parser):
 
     @_('PIDENTIFIER')
     def identifier(self, p):
-        pid = self.generator.getVariable(p.PIDENTIFIER, self.scope)
+        pid = self.generator.getVariable(p.PIDENTIFIER, self.scope, p.lineno)
         if not pid.isPointer:
             return self.generator.generateAddress(p.PIDENTIFIER, self.scope)
         return self.generator.generateAddressFromPointer(pid)
 
     @_('PIDENTIFIER LBRACKET NUMBER RBRACKET')
     def identifier(self, p):
-        pid = self.generator.getArray(p.PIDENTIFIER, self.scope)
+        pid = self.generator.getArray(p.PIDENTIFIER, self.scope, p.lineno)
         if not pid.isPointer:
             return self.generator.generateArrayElementAddress(p.PIDENTIFIER, p.NUMBER, self.scope)
         return self.generator.generateArrayElementAddressFromPointer(pid, p.NUMBER, self.scope)
 
     @_('PIDENTIFIER LBRACKET PIDENTIFIER RBRACKET')
     def identifier(self, p):
-        pid0 = self.generator.getArray(p.PIDENTIFIER0, self.scope)
-        pid1 = self.generator.getVariable(p.PIDENTIFIER1, self.scope)
+        pid0 = self.generator.getArray(p.PIDENTIFIER0, self.scope, p.lineno)
+        pid1 = self.generator.getVariable(p.PIDENTIFIER1, self.scope, p.lineno)
         if not pid0.isPointer and not pid1.isPointer:
             return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope)
         elif not pid0.isPointer and pid1.isPointer:
@@ -432,7 +455,7 @@ class MyParser(Parser):
 
     def error(self, p):
         if p:
-            raise Exception(f"Syntax error near: {p.type}, {p.value}")
+            raise Exception(f"Syntax error near: {p.type}, {p.value}, line {p.lineno}")
         else:
             raise Exception("Syntax error: Unexpected end of input")
 
