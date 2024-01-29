@@ -41,7 +41,6 @@ if __name__ == "__main__":
     with open(path_in) as file:
         text = file.read()
         code = process_labels(parser.parse(lexer.tokenize(text)))
-        #code = parser.parse(lexer.tokenize(text))
 
     with open(path_out, "w") as file:
         file.write(code)

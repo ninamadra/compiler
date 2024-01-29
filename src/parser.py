@@ -21,7 +21,6 @@ class MyParser(Parser):
 
     @_('procedures main')
     def program_all(self, p):
-        self.generator.readSymbolTable()
         if not p.procedures:
             return p.main
         return p.main + p.procedures
@@ -199,22 +198,22 @@ class MyParser(Parser):
 
     @_('args_decl COMMA PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0,True, True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0, True, True)
         return p.args_decl + [p.PIDENTIFIER]
 
     @_('args_decl COMMA T PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0,True)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0, True)
         return p.args_decl + ["T " + p.PIDENTIFIER]
 
     @_('PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareVariable(p.PIDENTIFIER, self.scope,0, True, True)
+        self.generator.declareVariable(p.PIDENTIFIER, self.scope, 0, True, True)
         return [p.PIDENTIFIER]
 
     @_('T PIDENTIFIER')
     def args_decl(self, p):
-        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0,True)
+        self.generator.declareArray(p.PIDENTIFIER, self.scope, 1, 0, True)
         return ["T " + p.PIDENTIFIER]
 
     # args productions
@@ -423,7 +422,8 @@ class MyParser(Parser):
     def value(self, p):
         if p.identifier[1] != "NUM":
             if self.generator.getVariable(p.identifier[1], self.scope, p.lineno).isInitialized is False:
-                print("WARNING: Variable '" + p.identifier[1] + "' may not be initialized at line " + str(p.lineno) + ".")
+                print(
+                    "WARNING: Variable '" + p.identifier[1] + "' may not be initialized at line " + str(p.lineno) + ".")
         return p.identifier[0] + self.generator.loadNumberFromAddress()
 
     # identifier productions
@@ -447,7 +447,8 @@ class MyParser(Parser):
         pid0 = self.generator.getArray(p.PIDENTIFIER0, self.scope, p.lineno)
         pid1 = self.generator.getVariable(p.PIDENTIFIER1, self.scope, p.lineno)
         if not pid0.isPointer and not pid1.isPointer:
-            return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1, self.scope), p.PIDENTIFIER1
+            return self.generator.generateArrayPidentifierElementAddress(p.PIDENTIFIER0, p.PIDENTIFIER1,
+                                                                         self.scope), p.PIDENTIFIER1
         elif not pid0.isPointer and pid1.isPointer:
             return self.generator.generateArrayPidentifierElementPointerAddress(pid0, pid1), p.PIDENTIFIER1
         elif pid0.isPointer and not pid1.isPointer:

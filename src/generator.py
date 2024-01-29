@@ -6,15 +6,6 @@ class MyGenerator:
     def __init__(self):
         self.symbols = SymbolTable()
 
-    def readSymbolTable(self):
-        return self.symbols.readSymbols()
-
-    def declareVariable(self, name, scope, line, isPointer=False, isInitialized=False):
-        return self.symbols.addVariable(name, scope, isPointer, line, isInitialized)
-
-    def markVariableInitialized(self, name, scope):
-        self.symbols.markVariableInitialized(name, scope)
-
     def getVariable(self, name, scope, line):
         var = self.symbols.getVariable(name, scope)
         arr = self.symbols.getArray(name, scope)
@@ -36,11 +27,17 @@ class MyGenerator:
     def getProcedure(self, name, line):
         return self.symbols.getProcedure(name, line)
 
+    def declareVariable(self, name, scope, line, isPointer=False, isInitialized=False):
+        return self.symbols.addVariable(name, scope, isPointer, line, isInitialized)
+
     def declareArray(self, name, scope, size, line, isPointer=False):
         return self.symbols.addArray(name, scope, int(size), isPointer, line)
 
     def declareProcedure(self, name, line, scope, args_decl, lineno, isDeclared=False):
         return self.symbols.addProcedure(name, line, scope, args_decl, lineno, isDeclared)
+
+    def markVariableInitialized(self, name, scope):
+        self.symbols.markVariableInitialized(name, scope)
 
     def markProceduresDeclared(self):
         self.symbols.markProceduresDeclared()
@@ -82,9 +79,9 @@ class MyGenerator:
     def generateArrayElementAddressFromPointer(self, pid, number, scope):
         code = self.generateNumber(int(pid.address))
         code += "LOAD a\n"
-        code += "PUT c\n"
+        code += "PUT h\n"
         code += self.generateNumber(int(number))
-        code += "ADD c\n"
+        code += "ADD h\n"
         return code
 
     def generateArrayPidentifierElementAddress(self, pidentifier, index, scope):

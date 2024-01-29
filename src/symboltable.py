@@ -68,17 +68,6 @@ class SymbolTable:
                 return procedure
         raise Exception(f"Procedure '{name}' does not exist, line: {line}.")
 
-    def readSymbols(self):
-        print("variables")
-        for var in self.variables:
-            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " isPointer: ", var.isPointer, " isInitialized: " + str(var.isInitialized))
-        print("arrays")
-        for var in self.arrays:
-            print("name: ", var.name, " address: ", var.address, " scope: ", var.scope, " size: ", var.size, " isPointer: ", var.isPointer)
-        print("procedures")
-        for procedure in self.procedures:
-            print("name: ", procedure.name, " label: ", procedure.line, "args_decl: ", str(procedure.args_decl), "return address: ", procedure.returnAddress, "declared: ", procedure.isDeclared)
-
 
 class Variable:
     def __init__(self, name, address, scope, isPointer=False, isInitialized=False):
